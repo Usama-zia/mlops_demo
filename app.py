@@ -1,36 +1,51 @@
-from flask import Flask
-from datetime import datetime
-app = Flask(__name__)
+# Local imports
+import datetime
 
-data = {
-    "drinks": [
-        {
-            "name": "Grape",
-            "description": "Delicious grape fruit drink",
-            "date": datetime.now()
-            },
-            {
-            "name": "Lemon",
-            "description": "Undiluted lemon fruit drink",
-            "date": datetime.now()
-            },
-            {
-            "name": "Mango",
-            "description": "This is a mango fruit",
-            "date": datetime.now()
-            }
-    ]
-}
+# Third part imports
+from flask import request
+import pandas as pd
 
-@app.route("/")
-def index():
-        return "Welcome To My Drinks API"
-
-@app.route('/drinks')
-def get_drinks():
-    return data
+from ms import app
+from ms.functions import get_model_response
 
 
-if __name__ == "__main__":
-    app.debug = True
-    app.run()
+model_name = "Breast Cancer Wisconsin (Diagnostic)"
+model_file = 'model_binary.dat.gz'
+version = "v1.0.0"
+
+
+@app.route('/info', methods=['GET'])
+def info():
+    """Return model information, version, how to call"""
+    result = {}
+
+    result["name"] = model_name
+    result["version"] = version
+
+    return result
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Return service health"""
+    return 'ok'
+
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    feature_dict = request.get_json()
+    if not feature_dict:
+        return {
+            'error': 'Body is empty.'
+        }, 500
+
+    try:
+        response = get_model_response(feature_dict)
+    except ValueError as e:
+        return {'error': str(e).split('\n')[-1].strip()}, 500
+
+    return response, 200
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')
